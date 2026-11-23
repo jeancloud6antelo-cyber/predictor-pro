@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020"><meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="icon.svg">
+<title>Predictor Pro</title>
+<style>
+:root{--bg:#0b1020;--card:#141b30;--line:#222c4a;--tx:#e8ecf8;--mu:#8b97b8;--g:#3ddc97;--y:#f5c451;--r:#ff6b6b;--b:#5b8cff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,sans-serif;padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid var(--line);z-index:5;display:flex;justify-content:space-between;align-items:center}
+h1{font-size:18px;margin:0}#st{font-size:12px;color:var(--mu)}
+main{padding:12px;max-width:640px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.t{font-weight:600}.mu{color:var(--mu);font-size:12px}
+.bar{display:flex;height:22px;border-radius:6px;overflow:hidden;margin:8px 0;font-size:11px;font-weight:700}
+.bar div{display:flex;align-items:center;justify-content:center;color:#0b1020;min-width:0}
+.c1{background:var(--g)}.cx{background:var(--y)}.c2{background:var(--b)}
+.chip{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line)}
+.Alta{color:var(--g);border-color:var(--g)}.Media{color:var(--y);border-color:var(--y)}.Baja{color:var(--r);border-color:var(--r)}
+.live{background:var(--r);color:#fff;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700}
+.odds{display:flex;gap:6px;margin-top:8px}.odds input{width:100%;background:#0b1020;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:6px;text-align:center}
+.val{margin-top:6px;font-size:13px;color:var(--g)}
+nav{position:fixed;bottom:0;left:0;right:0;background:#0e1428;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;color:var(--mu);padding:12px 0;font-size:13px}nav button.on{color:var(--g);font-weight:700}
+label{display:block;margin:10px 0 4px;font-size:13px;color:var(--mu)}
+input,select{width:100%;background:#0b1020;border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:10px;font-size:15px}
+.btn{background:var(--g);color:#0b1020;border:0;border-radius:10px;padding:10px 14px;font-weight:700;margin-top:10px}
+.btn.s{background:var(--card);color:var(--tx);border:1px solid var(--line)}
+.warn{font-size:12px;color:var(--mu);border-left:3px solid var(--y);padding-left:8px;margin:10px 0}
+</style></head><body>
+<header><h1>🎯 Predictor Pro</h1><span id="st">—</span></header>
+<main id="main"></main>
+<nav><button data-t="football">⚽ Fútbol</button><button data-t="esports">🎮 Esports</button><button data-t="hist">📊 Precisión</button><button data-t="set">⚙️ Ajustes</button></nav>
+<script src="engine.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function ld(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v?(Array.isArray(d)?v:Object.assign({},d,v)):d}catch(e){return d}}
+function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+let cfg=ld('pp_cfg',{demo:true,fdKey:'',fdLeague:'PL',pandaKey:'',game:'csgo',proxy:'',refresh:60});
+let hist=ld('pp_hist',{}),odds=ld('pp_odds',{}),tab='football',cache={},bt={},timer=null,deferred=null;
+const E=window.Engine;
+function rng(s){return()=>{s=(s*1664525+1013904223)%4294967296;return s/4294967296}}
+
+// ---------- Datos demo ----------
+function demoFootball(){const r=rng(11),now=Date.now();const N=['Atlético Norte','Real Costa','Deportivo Sur','Unión Central','Racing Valle','Sporting Mar','Athletic Monte','Club Puerto','Olimpia FC','Estrella Roja','Juventud','Libertad City'];
+const st=N.map(()=>({a:.6+r()*.7,d:.6+r()*.7}));const pg=l=>{let L=Math.exp(-l),k=0,p=1;do{k++;p*=r()}while(p>L);return k-1};
+const fin=[],up=[];let id=1;for(let i=0;i<300;i++){const h=r()*12|0,a=r()*12|0;if(h==a)continue;fin.push({id:id++,t:now-(1+r()*130)*864e5,home:N[h],away:N[a],hg:pg(1.5*st[h].a*st[a].d),ag:pg(1.2*st[a].a*st[h].d)})}
+for(let i=0;i<8;i++){const h=i,a=(i+5)%12;up.push({id:1000+i,t:now+(i*5+2)*36e5,home:N[h],away:N[a],live:false})}
+up.unshift({id:999,t:now-30*6e4,home:N[9],away:N[3],live:true,sc:'1-0'});return{fin,up}}
+function demoEsports(){const r=rng(5),now=Date.now();const N=['Nova Squad','Iron Wolves','Pulse Gaming','Apex Five','Shadow Core','Vortex','Titan Esports','Kraken GG'];const s=N.map(()=>r()*400-200);
+const past=[],up=[];let id=1;for(let i=0;i<220;i++){const a=r()*8|0,b=r()*8|0;if(a==b)continue;const p=1/(1+Math.pow(10,(s[b]-s[a])/400));const w=r()<p;past.push({id:id++,t:now-(220-i)*864e5/2,a:N[a],b:N[b],sa:w?2:r()<.5?1:0,sb:w?(r()<.5?1:0):2,winner:w?N[a]:N[b],bo:3})}
+for(let i=0;i<6;i++)up.push({id:900+i,t:now+(i*3+1)*36e5,a:N[i],b:N[(i+3)%8],bo:3,live:false});return{past,up}}
+
+// ---------- APIs reales ----------
+async function api(url,headers){const u=cfg.proxy?cfg.proxy+encodeURIComponent(url):url;const r=await fetch(u,{headers});if(!r.ok)throw new Error('HTTP '+r.status+(r.status==403||r.status==401?' (revisa tu clave)':r.status==429?' (límite de peticiones)':''));return r.json()}
+async function loadFootball(){if(cfg.demo)return demoFootball();
+ const j=await api(`https://api.football-data.org/v4/competitions/${cfg.fdLeague}/matches`,{'X-Auth-Token':cfg.fdKey});const fin=[],up=[],now=Date.now();
+ for(const m of j.matches){const t=Date.parse(m.utcDate),x={id:m.id,t,home:m.homeTeam.name,away:m.awayTeam.name};
+  if(m.status==='FINISHED'&&m.score.fullTime.home!=null){x.hg=m.score.fullTime.home;x.ag=m.score.fullTime.away;fin.push(x)}
+  else if(m.status==='IN_PLAY'||m.status==='PAUSED'){x.live=true;x.sc=(m.score.fullTime.home??0)+'-'+(m.score.fullTime.away??0);up.push(x)}
+  else if((m.status==='TIMED'||m.status==='SCHEDULED')&&t>now&&t<now+10*864e5)up.push(x)}
+ up.sort((a,b)=>a.t-b.t);return{fin,up}}
+async function loadEsports(){if(cfg.demo)return demoEsports();
+ const H={Authorization:'Bearer '+cfg.pandaKey},B='https://api.pandascore.co/'+cfg.game+'/matches';
+ const [p1,p2,u,run]=await Promise.all([api(B+'/past?per_page=100&page=1&sort=-scheduled_at',H),api(B+'/past?per_page=100&page=2&sort=-scheduled_at',H),api(B+'/upcoming?per_page=20',H),api(B+'/running?per_page=10',H)]);
+ const past=[];for(const m of [...p1,...p2]){const o=m.opponents||[];if(o.length<2||!m.winner_id)continue;const A=o[0].opponent,Bq=o[1].opponent;const sc=id=>((m.results||[]).find(r=>r.team_id===id)||{}).score||0;
+  past.push({id:m.id,t:Date.parse(m.scheduled_at||m.begin_at),a:A.name,b:Bq.name,sa:sc(A.id),sb:sc(Bq.id),winner:m.winner_id===A.id?A.name:Bq.name,bo:m.number_of_games})}
+ const up=[];for(const [arr,live] of [[run,true],[u,false]])for(const m of arr){const o=m.opponents||[];if(o.length<2)continue;up.push({id:m.id,t:Date.parse(m.scheduled_at||m.begin_at),a:o[0].opponent.name,b:o[1].opponent.name,bo:m.number_of_games,live,sc:live?(m.results||[]).map(r=>r.score).join('-'):''})}
+ return{past,up}}
+
+// ---------- Pipeline ----------
+function grade(key,o,pr){const h=hist[key];if(!h||h.done)return;h.done=true;h.o=o;h.hit=h.pick===o;h.brier=h.probs.reduce((s,q,j)=>s+Math.pow(q-(j===o?1:0),2),0)}
+async function refresh(manual){setSt('Actualizando…');try{
+ if(tab==='football'||tab==='esports'){
+  if(tab==='football'){const d=await loadFootball();const mod=E.buildFootball(d.fin);
+   d.fin.forEach(m=>grade('f'+m.id,m.hg>m.ag?0:m.hg===m.ag?1:2));
+   d.up.forEach(m=>{m.p=mod.predict(m.home,m.away);const k='f'+m.id;if(m.p&&!m.live&&m.t>Date.now()&&!hist[k])hist[k]={kind:'f',home:m.home,away:m.away,t:m.t,probs:m.p.probs,pick:m.p.pickIdx}});
+   cache.football={d,ts:Date.now()}}
+  else{const d=await loadEsports();const mod=E.buildEsports(d.past);
+   d.past.forEach(m=>grade('e'+m.id,m.winner===m.a?0:1));
+   d.up.forEach(m=>{m.p=mod.predict(m.a,m.b);const k='e'+m.id;if(m.p&&!m.live&&m.t>Date.now()&&!hist[k])hist[k]={kind:'e',home:m.a,away:m.b,t:m.t,probs:m.p.probs,pick:m.p.pickIdx}});
+   cache.esports={d,ts:Date.now()}}
+  sv('pp_hist',hist)}
+ setSt('Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+(cfg.demo?' · DEMO':''))}
+ catch(e){setSt('Error: '+e.message);if(manual||!cache[tab])$('#main').innerHTML=`<div class="card"><b>No se pudo cargar</b><p class="mu">${esc(e.message)}</p><p class="mu">Revisa tu clave en Ajustes o activa el modo demo. Si el navegador bloquea la API (CORS), configura un proxy.</p></div>`;return}
+ render()}
+function setSt(t){$('#st').textContent=t}
+function schedule(){clearInterval(timer);timer=setInterval(()=>{if(!document.hidden&&(tab==='football'||tab==='esports'))refresh()},Math.max(30,cfg.refresh)*1000)}
+
+// ---------- Render ----------
+const pc=x=>Math.round(x*100)+'%';
+const when=t=>new Date(t).toLocaleString('es',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+function oddsBlock(key,labels,probs){const o=odds[key]||[];let best=null;
+ const inp=labels.map((l,i)=>`<input inputmode="decimal" placeholder="Cuota ${esc(l)}" value="${o[i]||''}" data-k="${key}" data-i="${i}">`).join('');
+ labels.forEach((l,i)=>{const v=E.value(probs[i],parseFloat(o[i]));if(v&&v.edge>0.03&&(!best||v.edge>best.v.edge))best={l,v}});
+ const any=o.some(x=>parseFloat(x)>1);
+ return `<div class="odds">${inp}</div>`+(best?`<div class="val">💰 Valor: ${esc(best.l)} · ventaja +${(best.v.edge*100).toFixed(1)}% · stake sugerido ${(best.v.stake*100).toFixed(1)}% del bank</div>`:any?`<div class="mu" style="margin-top:6px">Sin valor con esas cuotas</div>`:'')}
+function fCard(m){const p=m.p,hd=`<div class="row"><span class="mu">${m.live?'<span class="live">EN VIVO '+esc(m.sc)+'</span>':when(m.t)}</span>${p?`<span class="chip ${p.conf}">Confianza ${p.conf}</span>`:''}</div><div class="t" style="margin:6px 0">${esc(m.home)} <span class="mu">vs</span> ${esc(m.away)}</div>`;
+ if(!p)return `<div class="card">${hd}<div class="mu">Sin historial suficiente de estos equipos.</div></div>`;
+ const [a,b,c]=p.probs,lab=['1','X','2'],pick=['Gana '+m.home,'Empate','Gana '+m.away][p.pickIdx];
+ return `<div class="card">${hd}<div class="bar"><div class="c1" style="width:${a*100}%">${pc(a)}</div><div class="cx" style="width:${b*100}%">${pc(b)}</div><div class="c2" style="width:${c*100}%">${pc(c)}</div></div>
+ <div class="row"><b>👉 ${esc(pick)}</b><span class="mu">Marcador probable ${p.score[0]}-${p.score[1]}</span></div>
+ <div class="mu" style="margin-top:4px">+2.5 goles ${pc(p.over25)} · Ambos anotan ${pc(p.btts)} · xG ${p.lh.toFixed(2)}-${p.la.toFixed(2)}</div>
+ <div class="mu">Elo ${Math.round(p.info.eloH)} vs ${Math.round(p.info.eloA)} · Forma ${pc(p.info.formH)} vs ${pc(p.info.formA)} · ${p.info.n} partidos</div>${oddsBlock('f'+m.id,lab,p.probs)}</div>`}
+function eCard(m){const p=m.p,hd=`<div class="row"><span class="mu">${m.live?'<span class="live">EN VIVO '+esc(m.sc)+'</span>':when(m.t)}${m.bo?' · BO'+m.bo:''}</span>${p?`<span class="chip ${p.conf}">Confianza ${p.conf}</span>`:''}</div><div class="t" style="margin:6px 0">${esc(m.a)} <span class="mu">vs</span> ${esc(m.b)}</div>`;
+ if(!p)return `<div class="card">${hd}<div class="mu">Sin historial suficiente.</div></div>`;
+ const [a,b]=p.probs;return `<div class="card">${hd}<div class="bar"><div class="c1" style="width:${a*100}%">${pc(a)}</div><div class="c2" style="width:${b*100}%">${pc(b)}</div></div>
+ <b>👉 Gana ${esc(p.pickIdx?m.b:m.a)}</b>
+ <div class="mu" style="margin-top:4px">Elo ${Math.round(p.info.eloA)} vs ${Math.round(p.info.eloB)} · Forma ${pc(p.info.formA)} vs ${pc(p.info.formB)} · H2H ${p.info.h2hN?(p.info.h2h>0?'favorece a '+m.a:p.info.h2h<0?'favorece a '+m.b:'igualado'):'sin datos'}</div>${oddsBlock('e'+m.id,['A','B'],p.probs)}</div>`}
+function histView(){const done=Object.values(hist).filter(h=>h.done),n=done.length,hit=done.filter(h=>h.hit).length;
+ const br=n?done.reduce((s,h)=>s+h.brier,0)/n:0;
+ let h=`<div class="card"><div class="t">Tus pronósticos reales (se evalúan solos)</div>${n?`<p>Aciertos: <b>${hit}/${n}</b> (${pc(hit/n)}) · Brier ${br.toFixed(3)}</p>`:`<p class="mu">Aún no hay partidos terminados con pronóstico guardado. La app guarda cada pronóstico antes del partido y lo califica sola al terminar.</p>`}</div>`;
+ for(const [k,l] of [['f','Fútbol'],['e','Esports']]){const c=cache[k==='f'?'football':'esports'];const r=bt[k];
+  h+=`<div class="card"><div class="t">Backtest ${l}</div><p class="mu">Predice partidos pasados usando solo datos anteriores a cada uno.</p>${r?`<p>${r.n} partidos · Aciertos <b>${pc(r.hit)}</b> · Brier ${r.brier.toFixed(3)} (azar: ${r.baseBrier.toFixed(3)})</p>`:''}<button class="btn s" data-bt="${k}" ${c?'':'disabled'}>${c?'Ejecutar backtest':'Abre primero la pestaña '+l}</button></div>`}
+ return h+`<p class="warn">Ningún modelo garantiza resultados. Un Brier menor al del azar y acierto estable en el backtest indican señal real; úsalo como apoyo, no como certeza. Apuesta solo lo que puedas perder y apuesta con responsabilidad (+18).</p>`}
+function setView(){return `<div class="card"><label>Modo</label><select id="demo"><option value="1" ${cfg.demo?'selected':''}>Demo (datos de ejemplo)</option><option value="0" ${cfg.demo?'':'selected'}>Datos reales (API)</option></select>
+<label>Fútbol · clave football-data.org (gratis)</label><input id="fdKey" value="${esc(cfg.fdKey)}" placeholder="X-Auth-Token">
+<label>Liga</label><select id="lg">${[['PL','Premier League'],['PD','LaLiga'],['SA','Serie A'],['BL1','Bundesliga'],['FL1','Ligue 1'],['CL','Champions League'],['BSA','Brasileirão'],['PPL','Primeira Liga'],['DED','Eredivisie'],['ELC','Championship']].map(([c,n])=>`<option value="${c}" ${cfg.fdLeague==c?'selected':''}>${n}</option>`).join('')}</select>
+<label>Esports · token PandaScore</label><input id="pKey" value="${esc(cfg.pandaKey)}" placeholder="Bearer token">
+<label>Juego</label><select id="gm">${[['csgo','Counter-Strike'],['lol','League of Legends'],['dota2','Dota 2'],['valorant','Valorant'],['r6siege','Rainbow Six'],['ow','Overwatch']].map(([c,n])=>`<option value="${c}" ${cfg.game==c?'selected':''}>${n}</option>`).join('')}</select>
+<label>Actualizar cada (segundos, mín. 30)</label><input id="rf" inputmode="numeric" value="${cfg.refresh}">
+<label>Proxy CORS (opcional, solo si el navegador bloquea la API)</label><input id="px" value="${esc(cfg.proxy)}" placeholder="https://tu-proxy/?url=">
+<button class="btn" id="save">Guardar</button> ${deferred?'<button class="btn s" id="inst">📲 Instalar app</button>':''}</div>
+<p class="warn">Claves gratis: football-data.org/client/register y pandascore.co (plan gratuito). Las claves se guardan solo en tu teléfono. En iPhone: Compartir → Añadir a pantalla de inicio.</p>`}
+function render(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));let h='';
+ if(tab==='football'){const c=cache.football;h=c?(c.d.up.length?c.d.up.map(fCard).join(''):'<div class="card mu">No hay partidos próximos.</div>'):'<div class="mu">Cargando…</div>'}
+ else if(tab==='esports'){const c=cache.esports;h=c?(c.d.up.length?c.d.up.map(eCard).join(''):'<div class="card mu">No hay partidos próximos.</div>'):'<div class="mu">Cargando…</div>'}
+ else if(tab==='hist')h=histView();else h=setView();$('#main').innerHTML=h}
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset.k){const a=odds[t.dataset.k]||[];a[+t.dataset.i]=parseFloat(t.value.replace(',','.'))||'';odds[t.dataset.k]=a;sv('pp_odds',odds);render()}});
+document.addEventListener('click',e=>{const t=e.target;
+ if(t.dataset.t){tab=t.dataset.t;render();if(tab==='football'||tab==='esports')refresh(true)}
+ if(t.id==='save'){cfg={demo:$('#demo').value==='1',fdKey:$('#fdKey').value.trim(),fdLeague:$('#lg').value,pandaKey:$('#pKey').value.trim(),game:$('#gm').value,proxy:$('#px').value.trim(),refresh:+$('#rf').value||60};sv('pp_cfg',cfg);cache={};schedule();tab='football';refresh(true)}
+ if(t.id==='inst'&&deferred){deferred.prompt();deferred=null}
+ if(t.dataset.bt){const k=t.dataset.bt,c=cache[k==='f'?'football':'esports'];t.textContent='Calculando…';setTimeout(()=>{bt[k]=E.backtest(k,k==='f'?c.d.fin:c.d.past);render()},30)}});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&(tab==='football'||tab==='esports'))refresh()});
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+schedule();render();refresh(true);
+</script></body></html>
